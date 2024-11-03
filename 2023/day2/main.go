@@ -1,64 +1,77 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"regexp"
+	"strconv"
 	"strings"
-    "regexp"
-    "strconv"
-    "fmt"
 )
 
 func main() {
-    input := `Game 1:  3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-Game 2:  1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
-Game 3:  8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
-Game 4:  1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
-Game 5:  6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`
+	data, err := ioutil.ReadFile("input.txt")
+	if err != nil {
+		log.Fatalf("Failed to read file: %s", err)
+	}
 
-	_, err := CalculatePossibleGames(input)
+	res, err := CalculatePossibleGames(string(data))
 	if err != nil {
 		panic(err)
 	}
+    fmt.Println(res)
 }
 
 func CalculatePossibleGames(input string) (int64, error) {
 	games := strings.Split(input, "\n")
-	possible_games := int64(0)
+	possibleGames := int64(0)
 
-    // Loop though all lines
+	// Loop through all lines
 	for _, game := range games {
-        color_map := map[string]int{"red":12, "green":13, "blue":14}
+		if game == "" {
+			continue // Skip empty lines
+		}
 
-        // find line id
-        game_string := strings.Split(game, ":")
+		colorMap := map[string]int{"red": 12, "green": 13, "blue": 14}
 
-        split_id := strings.Split(game_string[0], " ")
-        id := split_id[len(split_id)-1]
-        fmt.Println(id)
+		// Split the game line by ":"
+		gameString := strings.Split(game, ":")
+		if len(gameString) < 2 {
+			return 0, fmt.Errorf("invalid line format: %s", game)
+		}
 
-        // Regular expression to match ";", " ", and ","
-        re := regexp.MustCompile(`[;,]+`)
+		// Get the ID from the line
+		splitID := strings.Split(gameString[0], " ")
+		id := splitID[len(splitID)-1]
 
-        // Replace all occurrences with an empty string
-        result := re.ReplaceAllString(game_string[1], "")
-        game_array := strings.Split(result[1:], " ")
-        if len(game_array) % 2 != 0 {
-            panic("Invalid input")
-        }
-        possible := true
-        for i := 0; i < len(game_array); i+=2 {
-            num, err := strconv.ParseInt(game_array[i], 10, 64)
-            if err != nil {
-                panic("Expected string, got int")
-            }
-            if int(num) > color_map[game_array[i+1]] {
-                possible = false
-            }
-        }
-        if possible {
-            num, _ := strconv.ParseInt(id, 10, 64)
-            possible_games += int64(num)
-        }
+		// Regular expression to remove ";", " ", and ","
+		re := regexp.MustCompile(`[;,]+`)
+		result := re.ReplaceAllString(gameString[1], "")
+		gameArray := strings.Split(result[1:], " ")
 
+		if len(gameArray)%2 != 0 {
+			return 0, fmt.Errorf("invalid input format in line: %s", game)
+		}
+
+		possible := true
+		for i := 0; i < len(gameArray); i += 2 {
+			num, err := strconv.ParseInt(gameArray[i], 10, 64)
+			if err != nil {
+				return 0, fmt.Errorf("expected integer, got string in line: %s", game)
+			}
+			if int(num) > colorMap[gameArray[i+1]] {
+				possible = false
+				break
+			}
+		}
+
+		if possible {
+			num, err := strconv.ParseInt(id, 10, 64)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse ID: %s", id)
+			}
+			possibleGames += num
+		}
 	}
-	return possible_games, nil
+	return possibleGames, nil
 }
